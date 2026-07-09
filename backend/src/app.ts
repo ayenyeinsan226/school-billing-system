@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
+import authRoutes from './routes/authRoutes';
 
 // .env ဖိုင်ကို ဖတ်ရန်
 dotenv.config();
@@ -10,8 +11,14 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware များ သတ်မှတ်ခြင်း
-app.use(cors());
+
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  credentials: true
+}));
 app.use(express.json());
+
+app.use('/api/auth', authRoutes);
 
 // PostgreSQL Pool Connection Settings
 // (သင်၏ Local Database Info များနှင့် ကိုက်ညီအောင် ပြင်ပေးပါ)
