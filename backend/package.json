@@ -1,0 +1,26 @@
+{
+  "name": "school-billing-backend",
+  "version": "1.0.0",
+  "description": "Backend for School Billing System",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "dev": "nodemon --watch src --exec ts-node src/app.ts"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "pg": "^8.11.5",
+    "dotenv": "^16.4.5",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.11.30",
+    "@types/pg": "^8.11.4",
+    "@types/cors": "^2.8.17",
+    "typescript": "^5.4.3",
+    "nodemon": "^3.1.0",
+    "ts-node": "^10.9.2"
+  }
+}
