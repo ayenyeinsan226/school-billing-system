@@ -1,98 +1,226 @@
-import React, { useState } from 'react';
-import { Invoice } from '../types/billing';
+import { useEffect, useState } from 'react';
+import axios from 'axios';
 
-const initialInvoices: Invoice[] = [
-  { id: 'INV-1001', studentName: 'Su Su', courseName: 'English Diploma', amountDue: 150, amountPaid: 150, dueDate: '2026-07-15', status: 'Paid' },
-  { id: 'INV-1002', studentName: 'Aung Aung', courseName: 'IELTS BootCamp', amountDue: 200, amountPaid: 0, dueDate: '2026-07-20', status: 'Unpaid' },
-];
+interface Invoice {
+  id: number;
+  invoice_number: string;
+  student_name: string;
+  amount: number;
+  due_date: string;
+  status: string;
+}
+
+interface Student {
+  id: number;
+  full_name: string;
+}
 
 export default function InvoiceList() {
-  const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ studentName: '', courseName: 'English Diploma', amountDue: '' });
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Modal နှင့် Form States
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [amount, setAmount] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [submitLoading, setSubmitLoading] = useState(false);
+
+  const fetchInvoices = async () => {
+    try {
+      const response = await axios.get('/api/invoices');
+      setInvoices(response.data);
+    } catch (err) {
+      console.error('Fetch invoices error:', err);
+      setError('Failed to load invoices.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Dropdown တွင် ပြသရန် ကျောင်းသားစာရင်းကိုပါ ဆွဲထုတ်ခြင်း
+  const fetchStudents = async () => {
+    try {
+      const response = await axios.get('/api/students');
+      setStudents(response.data);
+      if (response.data.length > 0) {
+        setSelectedStudentId(response.data[0].id.toString()); // ပထမဆုံးကျောင်းသားကို Default ရွေးထားမည်
+      }
+    } catch (err) {
+      console.error('Fetch students error:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchInvoices();
+    fetchStudents();
+  }, []);
+
+  // Invoice အသစ်ထုတ်ခြင်း တင်သွင်းမှု Logic
+  const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newInvoice: Invoice = {
-      id: `INV-${1000 + invoices.length + 1}`,
-      studentName: formData.studentName,
-      courseName: formData.courseName,
-      amountDue: Number(formData.amountDue),
-      amountPaid: 0,
-      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // ယနေ့မှ နောက်ထပ် ၇ ရက် ပေးရန်
-      status: 'Unpaid',
-    };
-    setInvoices([newInvoice, ...invoices]);
-    setIsModalOpen(false);
-    setFormData({ studentName: '', courseName: 'English Diploma', amountDue: '' });
+    if (!selectedStudentId || !amount || !dueDate) return;
+
+    setSubmitLoading(true);
+    try {
+      await axios.post('/api/invoices', {
+        student_id: parseInt(selectedStudentId),
+        amount: parseFloat(amount),
+        due_date: dueDate
+      });
+
+      // Form ပိတ်ပြီး ဒေတာ ပြန်ဆွဲထုတ်ခြင်း
+      setAmount('');
+      setDueDate('');
+      setIsModalOpen(false);
+      fetchInvoices();
+    } catch (err) {
+      console.error('Create invoice error:', err);
+      alert('Failed to create invoice. Please try again.');
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
   return (
-    <div className="flex-1 p-8 bg-slate-50 min-h-screen">
-      <header className="flex justify-between items-center mb-8">
+    <div className="p-6 md:p-8 max-w-7xl mx-auto relative">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-800">Invoices Billing</h1>
-          <p className="text-slate-500">Issue student tuition fees and track outstanding balances.</p>
+          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Invoices Management</h1>
+          <p className="text-slate-500 text-sm mt-0.5">Track and manage student fee invoices</p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all">+ Create Invoice</button>
-      </header>
-
-      {/* Invoice Table */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50/70 border-b border-slate-100 text-slate-400 text-sm font-semibold">
-              <th className="p-4">Invoice ID</th>
-              <th className="p-4">Student Name</th>
-              <th className="p-4">Course</th>
-              <th className="p-4">Amount Due</th>
-              <th className="p-4">Due Date</th>
-              <th className="p-4">Status</th>
-            </tr>
-          </thead>
-          <tbody className="text-slate-600 divide-y divide-slate-100">
-            {invoices.map((inv) => (
-              <tr key={inv.id} className="hover:bg-slate-50/50 transition-colors">
-                <td className="p-4 font-semibold text-indigo-600">{inv.id}</td>
-                <td className="p-4 font-medium text-slate-700">{inv.studentName}</td>
-                <td className="p-4 text-sm">{inv.courseName}</td>
-                <td className="p-4 font-semibold">${inv.amountDue}</td>
-                <td className="p-4 text-sm text-slate-400">{inv.dueDate}</td>
-                <td className="p-4">
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                    inv.status === 'Paid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
-                  }`}>{inv.status}</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="inline-flex items-center justify-center px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-xs transition-all cursor-pointer"
+        >
+          + Create Invoice
+        </button>
       </div>
 
-      {/* Pop-up Create Invoice Modal */}
+      {/* Table Area */}
+      {loading ? (
+        <div className="flex items-center justify-center h-64 text-slate-400 font-medium text-sm">
+          Loading invoices...
+        </div>
+      ) : error ? (
+        <div className="p-4 bg-rose-50 border border-rose-100 text-rose-600 rounded-2xl text-sm font-medium">
+          ⚠️ {error}
+        </div>
+      ) : (
+        <div className="bg-white rounded-3xl shadow-xs border border-slate-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/75 border-b border-slate-100 text-slate-500 text-xs font-semibold uppercase tracking-wider">
+                  <th className="px-6 py-4">Invoice No</th>
+                  <th className="px-6 py-4">Student Name</th>
+                  <th className="px-6 py-4">Amount</th>
+                  <th className="px-6 py-4">Due Date</th>
+                  <th className="px-6 py-4">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-600 text-sm">
+                {invoices.map((invoice) => (
+                  <tr key={invoice.id} className="hover:bg-slate-50/40 transition-colors">
+                    <td className="px-6 py-4 font-mono font-semibold text-indigo-600">{invoice.invoice_number}</td>
+                    <td className="px-6 py-4 font-semibold text-slate-800">{invoice.student_name}</td>
+                    <td className="px-6 py-4 font-mono text-slate-700 font-medium">
+                      {Number(invoice.amount).toLocaleString()} MMK
+                    </td>
+                    <td className="px-6 py-4 text-slate-500">{formatDate(invoice.due_date)}</td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        invoice.status === 'Paid' 
+                          ? 'bg-emerald-50 text-emerald-700' 
+                          : 'bg-amber-50 text-amber-700'
+                      }`}>
+                        {invoice.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ✨ Create Invoice Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-xs flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <h3 className="text-xl font-bold text-slate-800 mb-4">Generate New Invoice</h3>
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 border border-slate-100/80">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-slate-800">Create New Invoice</h3>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-xl font-medium cursor-pointer p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateInvoice} className="flex flex-col gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1">Select Student</label>
-                <input type="text" required value={formData.studentName} onChange={(e) => setFormData({...formData, studentName: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="Student Name" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1">Course</label>
-                <select value={formData.courseName} onChange={(e) => setFormData({...formData, courseName: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
-                  <option value="English Diploma">English Diploma</option>
-                  <option value="IELTS BootCamp">IELTS BootCamp</option>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Select Student</label>
+                <select
+                  value={selectedStudentId}
+                  onChange={(e) => setSelectedStudentId(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 bg-slate-50/30"
+                >
+                  {students.map((student) => (
+                    <option key={student.id} value={student.id}>
+                      {student.full_name} (#{student.id})
+                    </option>
+                  ))}
                 </select>
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1">Fee Amount ($)</label>
-                <input type="number" required value={formData.amountDue} onChange={(e) => setFormData({...formData, amountDue: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="150" />
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Fee Amount (MMK)</label>
+                <input
+                  type="number"
+                  required
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 bg-slate-50/30"
+                  placeholder="e.g. 150000"
+                />
               </div>
-              <div className="flex gap-3 mt-4">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-2 border border-slate-200 rounded-lg text-sm font-medium">Cancel</button>
-                <button type="submit" className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">Issue Invoice</button>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Due Date</label>
+                <input
+                  type="date"
+                  required
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 bg-slate-50/30"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitLoading}
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {submitLoading ? 'Creating...' : 'Create Invoice'}
+                </button>
               </div>
             </form>
           </div>

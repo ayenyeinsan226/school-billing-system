@@ -3,6 +3,9 @@ import cors from 'cors';
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
 import authRoutes from './routes/authRoutes';
+import studentRoutes from './routes/studentRoutes';
+import invoiceRoutes from './routes/invoiceRoutes';
+import paymentRoutes from './routes/paymentRoutes';
 
 // .env ဖိုင်ကို ဖတ်ရန်
 dotenv.config();
@@ -19,6 +22,9 @@ app.use(cors({
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
+app.use('/api/students', studentRoutes);
+app.use('/api/invoices', invoiceRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // PostgreSQL Pool Connection Settings
 // (သင်၏ Local Database Info များနှင့် ကိုက်ညီအောင် ပြင်ပေးပါ)
